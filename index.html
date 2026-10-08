@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Рецепт у MealTime</title>
+<meta name="description" content="Рецепт, яким з вами поділилися в MealTime. Відкрийте його в застосунку.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="MealTime">
+<meta property="og:title" content="Рецепт у MealTime">
+<meta property="og:description" content="Відкрийте його в застосунку MealTime.">
+<meta property="og:image" content="https://yevgny.github.io/mealtime/icon.png">
+<meta property="og:url" content="https://yevgny.github.io/mealtime/">
+<meta name="theme-color" content="#f3f1ea" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1c1f1b" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Literata:wght@400;600&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root { --bg: #f3f1ea; --text: #1f221d; --muted: #6f7468; --accent: #5b7a4a; --on-accent: #fff; }
+@media (prefers-color-scheme: dark) { :root { --bg: #1c1f1b; --text: #f0ede4; --muted: #9ea396; --accent: #9ccf7b; --on-accent: #15200f; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: "DM Sans", -apple-system, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+main { max-width: 480px; margin: 0 auto; padding: 48px 20px 40px; text-align: center; }
+.icon { width: 96px; height: 96px; border-radius: 22px; }
+h1 { font-family: Literata, Georgia, serif; font-weight: 400; font-size: 26px; line-height: 1.2; letter-spacing: .3px; margin: 22px 0 8px; overflow-wrap: anywhere; }
+.facts { color: var(--muted); font-size: 15px; line-height: 1.45; margin: 0 0 28px; }
+.btn { display: block; background: var(--accent); color: var(--on-accent); text-decoration: none; font-weight: 600; font-size: 17px; padding: 16px 20px; border-radius: 999px; }
+.btn[hidden] { display: none; }
+.note { color: var(--muted); font-size: 13px; line-height: 1.45; margin: 16px 8px 0; }
+footer { margin-top: 44px; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<main>
+<img class="icon" src="icon.png" alt="">
+<h1 id="title">Рецепт у MealTime</h1>
+<p class="facts" id="facts">Відкрийте його в застосунку.</p>
+<a class="btn" id="open" href="#" hidden>Відкрити в MealTime</a>
+<p class="note" id="note">Потрібен застосунок MealTime на цьому телефоні. Якщо його ще немає, попросіть про встановлення того, хто поділився.</p>
+<footer>MealTime</footer>
+</main>
+<script>
+// The app's route rides after "#": "/recipes/<id>" for a catalogue
+// recipe, "/recipes/import?r=<payload>" for a recipe carried in the
+// link. Nothing is sent to the server; the page only builds the button
+// that opens the same route through the mealtime:// scheme. The scheme
+// and host match ShareLinks in the app.
+(function () {
+  var route = location.hash.slice(1);
+  var m = /^\/recipes\/([A-Za-z0-9_-]+)(?:\?r=([A-Za-z0-9_-]+))?$/.exec(route);
+  var btn = document.getElementById('open');
+  var title = document.getElementById('title');
+  var facts = document.getElementById('facts');
+  var note = document.getElementById('note');
+  var isImport = !!m && m[1] === 'import';
+  if (!m || isImport !== !!m[2]) {
+    title.textContent = 'Посилання неповне';
+    facts.textContent = 'У ньому немає рецепта. Попросіть надіслати його ще раз.';
+    note.hidden = true;
+    return;
+  }
+  btn.href = 'mealtime://open' + route;
+  btn.hidden = false;
+  if (!isImport) return;
+
+  title.textContent = 'Рецепт для вас';
+  facts.textContent = 'Застосунок додасть його до ваших рецептів.';
+  if (!('DecompressionStream' in window)) return;
+  try {
+    var b64 = m[2].replace(/-/g, '+').replace(/_/g, '/');
+    b64 += '='.repeat((4 - b64.length % 4) % 4);
+    var bin = atob(b64);
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    var stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'));
+    new Response(stream).text().then(function (text) {
+      var r = JSON.parse(text);
+      if (!r || !r.t) return;
+      document.title = r.t + ' — MealTime';
+      title.textContent = r.t;
+      var parts = [];
+      if (r.i && r.i.length) parts.push(r.i.length + ' інгр.');
+      if (r.st && r.st.length) parts.push(r.st.length + ' кроків');
+      var minutes = (r.p || 0) + (r.c || 0);
+      if (minutes) parts.push(minutes + ' хв');
+      if (r.s) parts.push(r.s + ' порц.');
+      if (parts.length) facts.textContent = parts.join(' · ');
+    }).catch(function () {});
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>
